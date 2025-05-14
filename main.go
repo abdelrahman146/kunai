@@ -2,18 +2,12 @@ package main
 
 import (
 	"fmt"
-	"github.com/spf13/cobra"
+	"github.com/abdelrahman146/kunai/cmd"
 	"os"
 )
 
-var rootCmd = &cobra.Command{
-	Use:   "kunai",
-	Short: "Kunai CLI tool",
-}
-
 func main() {
-
-	if err := rootCmd.Execute(); err != nil {
+	if err := cmd.RootCmd.Execute(); err != nil {
 		fmt.Println(err)
 		os.Exit(1)
 	}

@@ -1,7 +1,8 @@
-package main
+package cmd
 
 import (
 	"fmt"
+	"github.com/abdelrahman146/kunai/utils"
 	"os"
 	"sort"
 	"time"
@@ -30,7 +31,7 @@ func init() {
 	// register flags
 	freeSomeSpaceCmd.Flags().IntVarP(&freeSomeSpaceCmdParams.Top, "top", "t", freeSomeSpaceCmdParams.Top, "number of top memory processes to target")
 	freeSomeSpaceCmd.Flags().BoolVarP(&freeSomeSpaceCmdParams.Force, "force", "f", freeSomeSpaceCmdParams.Force, "force delete processes without user confirmation")
-	rootCmd.AddCommand(freeSomeSpaceCmd)
+	RootCmd.AddCommand(freeSomeSpaceCmd)
 }
 
 type processInfo struct {
@@ -83,7 +84,7 @@ func runFreeSomeSpace(cmd *cobra.Command, args []string) {
 	}
 
 	if !freeSomeSpaceCmdParams.Force {
-		ok, err := WaitForConfirmation("Are you sure you want to kill the processes above and their children?")
+		ok, err := utils.WaitForConfirmation("Are you sure you want to kill the processes above and their children?")
 		if err != nil {
 			fmt.Printf("Failed to read user input: %v\n", err)
 			return
