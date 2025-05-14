@@ -3,21 +3,15 @@ package cmd
 import (
 	"fmt"
 	"github.com/abdelrahman146/kunai/utils"
-	"os"
-	"sort"
-	"time"
-
 	"github.com/shirou/gopsutil/v3/process"
 	"github.com/spf13/cobra"
+	"sort"
 )
 
 // freeSomeSpaceCmdParams holds CLI flags for free-some-space
-var freeSomeSpaceCmdParams = struct {
+var freeSomeSpaceCmdParams struct {
 	Top   int
 	Force bool
-}{
-	Top:   5,
-	Force: false,
 }
 
 // free-some-space subcommand
@@ -29,8 +23,8 @@ var freeSomeSpaceCmd = &cobra.Command{
 
 func init() {
 	// register flags
-	freeSomeSpaceCmd.Flags().IntVarP(&freeSomeSpaceCmdParams.Top, "top", "t", freeSomeSpaceCmdParams.Top, "number of top memory processes to target")
-	freeSomeSpaceCmd.Flags().BoolVarP(&freeSomeSpaceCmdParams.Force, "force", "f", freeSomeSpaceCmdParams.Force, "force delete processes without user confirmation")
+	freeSomeSpaceCmd.Flags().IntVarP(&freeSomeSpaceCmdParams.Top, "top", "t", 5, "number of top memory processes to target")
+	freeSomeSpaceCmd.Flags().BoolVarP(&freeSomeSpaceCmdParams.Force, "force", "f", false, "force delete processes without user confirmation")
 	RootCmd.AddCommand(freeSomeSpaceCmd)
 }
 
@@ -74,9 +68,10 @@ func runFreeSomeSpace(cmd *cobra.Command, args []string) {
 		mem := infos[i].mem
 		pid := p.Pid
 		name, _ := p.Name()
-		fmt.Printf("%d. PID: %d, Name: %s, Memory: %d bytes\n", i+1, pid, name, mem)
+		memMB := fmt.Sprintf("%.2f", float64(mem)/1024)
+		fmt.Printf("%d. PID: %d, Name: %s, Memory: %s MB\n", i+1, pid, name, memMB)
 
-		if isSafeToKill(p) {
+		if utils.IsSafeToKill(p) {
 			targets = append(targets, p)
 		} else {
 			fmt.Printf("Skipping PID %d (unsafe to kill)\n", pid)
@@ -96,55 +91,13 @@ func runFreeSomeSpace(cmd *cobra.Command, args []string) {
 	}
 
 	// Kill each process tree
-	var killed []int32
 	for _, p := range targets {
 		name, _ := p.Name()
 		fmt.Printf("Killing process (PID: %d, Name: %s) and its children if any...\n", p.Pid, name)
-		killProcessTree(p, &killed)
+		utils.KillProcessTree(p)
 		fmt.Printf("Killed process (PID: %d, Name: %s)\n", p.Pid, name)
 	}
 
 	// Summary
-	if len(killed) > 0 {
-		fmt.Printf("Successfully killed %d processes\n", len(killed))
-	} else {
-		fmt.Println("No processes were killed.")
-	}
-}
-
-// killProcessTree recursively kills a process and its children
-func killProcessTree(p *process.Process, killed *[]int32) {
-	// Kill children first
-	children, err := p.Children()
-	if err == nil {
-		for _, c := range children {
-			killProcessTree(c, killed)
-		}
-	}
-
-	// Kill this process
-	err = p.Kill()
-	if err != nil {
-		fmt.Printf("--- Failed to kill PID %d: %v\n", p.Pid, err)
-	} else {
-		*killed = append(*killed, p.Pid)
-		fmt.Printf("--- Killed PID %d\n", p.Pid)
-	}
-
-	// Small delay to allow OS to reclaim resources
-	time.Sleep(100 * time.Millisecond)
-}
-
-// isSafeToKill avoids killing critical or the CLI itself
-func isSafeToKill(p *process.Process) bool {
-	// Never kill this CLI
-	if p.Pid == int32(os.Getpid()) {
-		return false
-	}
-	// Avoid root-owned
-	username, err := p.Username()
-	if err == nil && username == "root" {
-		return false
-	}
-	return true
+	fmt.Println("Done")
 }
