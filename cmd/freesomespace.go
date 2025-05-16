@@ -25,7 +25,6 @@ func init() {
 	// register flags
 	freeSomeSpaceCmd.Flags().IntVarP(&freeSomeSpaceCmdParams.Top, "top", "t", 5, "number of top memory processes to target")
 	freeSomeSpaceCmd.Flags().BoolVarP(&freeSomeSpaceCmdParams.Force, "force", "f", false, "force delete processes without user confirmation")
-	RootCmd.AddCommand(freeSomeSpaceCmd)
 }
 
 type processInfo struct {

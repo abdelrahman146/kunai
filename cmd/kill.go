@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/abdelrahman146/kunai/utils"
 	"github.com/spf13/cobra"
+	"log"
 )
 
 var killCmd = &cobra.Command{
@@ -19,9 +20,8 @@ var killCmdParams struct {
 func init() {
 	killCmd.Flags().Uint32VarP(&killCmdParams.Port, "port", "p", 0, "the port of the process to kill")
 	if err := killCmd.MarkFlagRequired("port"); err != nil {
-		panic(err)
+		log.Fatalln("port is required")
 	}
-	RootCmd.AddCommand(killCmd)
 }
 
 func kill(cmd *cobra.Command, args []string) {

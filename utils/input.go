@@ -15,5 +15,5 @@ func WaitForConfirmation(message string) (bool, error) {
 		return false, fmt.Errorf("failed to read user input: %w", err)
 	}
 	resp = strings.TrimSpace(strings.ToLower(resp))
-	return resp != "y" && resp != "yes", nil
+	return resp == "y" || resp == "yes", nil
 }
