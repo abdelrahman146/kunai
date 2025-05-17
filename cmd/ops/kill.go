@@ -1,8 +1,8 @@
-package cmd
+package ops
 
 import (
 	"fmt"
-	"github.com/abdelrahman146/kunai/utils"
+	"github.com/abdelrahman146/kunai/internal/system"
 	"github.com/spf13/cobra"
 	"log"
 )
@@ -25,12 +25,12 @@ func init() {
 }
 
 func kill(cmd *cobra.Command, args []string) {
-	p, err := utils.FindProcessByPort(killCmdParams.Port)
+	p, err := system.FindProcessByPort(killCmdParams.Port)
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
-	utils.KillProcessTree(p)
+	system.KillProcessTree(p)
 	// Summary
 	fmt.Println("Done")
 }
