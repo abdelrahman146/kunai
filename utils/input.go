@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"github.com/briandowns/spinner"
+	"golang.org/x/term"
 	"os"
 	"strings"
 	"time"
@@ -20,7 +21,7 @@ func RequestConfirmation(message string) (bool, error) {
 	return resp == "y" || resp == "yes", nil
 }
 
-func RunREPL(processInput func(string) (response string, err error)) {
+func RunREPL(processInput func(string) (response any, err error)) {
 	reader := bufio.NewReader(os.Stdin)
 	fmt.Println("Interactive project-aware REPL started. Type 'exit' or 'quit' to quit.")
 	for {
@@ -35,7 +36,7 @@ func RunREPL(processInput func(string) (response string, err error)) {
 			fmt.Println(err)
 			continue
 		}
-		fmt.Println(resp)
+		fmt.Print(resp)
 	}
 }
 
@@ -46,4 +47,15 @@ func RunWithSpinner(msg string, process func()) {
 	s.Start()
 	defer s.Stop()
 	process()
+}
+
+// TerminalWidth returns the terminal's current width in characters.
+// If it cannot detect the width (e.g., not a TTY), it falls back to 80 columns.
+func TerminalWidth() int {
+	// GetSize returns width, height, error
+	if width, _, err := term.GetSize(int(os.Stdout.Fd())); err == nil && width > 0 {
+		return width
+	}
+	// Fallback width
+	return 80
 }

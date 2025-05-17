@@ -7,7 +7,6 @@ import (
 	"github.com/tmc/langchaingo/schema"
 	"github.com/tmc/langchaingo/textsplitter"
 	"io/fs"
-	"log"
 	"os"
 	"path/filepath"
 )
@@ -30,7 +29,7 @@ func ScanProject(projectPath string) ([]schema.Document, error) {
 			if !utils.CanProcessPath(path) {
 				return nil
 			}
-			log.Printf("Reading %q\n", path)
+			//log.Printf("Reading %q\n", path)
 			chunks, err := fileToChunks(path, 200, 50)
 			docs = append(docs, chunks...)
 			return nil

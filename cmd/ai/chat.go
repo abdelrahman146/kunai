@@ -4,10 +4,13 @@ import (
 	"context"
 	"github.com/abdelrahman146/kunai/internal/ai"
 	"github.com/abdelrahman146/kunai/utils"
+	"github.com/charmbracelet/glamour"
 	"github.com/spf13/cobra"
 	"github.com/tmc/langchaingo/chains"
 	"github.com/tmc/langchaingo/memory"
 	"github.com/tmc/langchaingo/vectorstores"
+	"golang.org/x/crypto/ssh/terminal"
+	"os"
 	"time"
 )
 
@@ -75,8 +78,23 @@ func runChatCmd(cmd *cobra.Command, args []string) error {
 	retriever := vectorstores.ToRetriever(store, chatCmdParams.MaxRelevantDocs)
 	convMem := memory.NewConversationBuffer(memory.WithReturnMessages(true))
 	qaChain := chains.NewConversationalRetrievalQAFromLLM(llm, retriever, convMem)
+
+	// Prerpare Rendering
+	var renderer *glamour.TermRenderer
+	isTTY := terminal.IsTerminal(int(os.Stdout.Fd()))
+	style := "notty"
+	if isTTY {
+		style = "dark"
+		r, renderErr := glamour.NewTermRenderer(
+			glamour.WithStandardStyle(style),
+			glamour.WithWordWrap(utils.TerminalWidth()),
+		)
+		if renderErr == nil {
+			renderer = r
+		}
+	}
 	// Start REPL
-	utils.RunREPL(func(input string) (response string, err error) {
+	utils.RunREPL(func(input string) (response any, err error) {
 		// Retrieve relevant docs
 		inputs := map[string]any{
 			"question": input, // your prompt
@@ -103,6 +121,13 @@ func runChatCmd(cmd *cobra.Command, args []string) error {
 			return "", err
 		}
 		// Send Answer
+		if renderer != nil {
+			if out, err := renderer.Render(answer); err != nil {
+				return answer, err
+			} else {
+				return out, nil
+			}
+		}
 		return answer, nil
 	})
 	return nil
