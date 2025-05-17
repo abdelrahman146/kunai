@@ -68,8 +68,8 @@ func runFreeSomeSpace(cmd *cobra.Command, args []string) {
 		mem := infos[i].mem
 		pid := p.Pid
 		name, _ := p.Name()
-		memMB := fmt.Sprintf("%.2f", float64(mem)/1024)
-		fmt.Printf("%d. PID: %d, Name: %s, Memory: %s MB\n", i+1, pid, name, memMB)
+		memMB := fmt.Sprintf("%.2f", float64(mem)/1024/1024/1024)
+		fmt.Printf("%d. PID: %d, Name: %s, Memory: %s GB\n", i+1, pid, name, memMB)
 
 		if system.IsSafeToKill(p) {
 			targets = append(targets, p)
