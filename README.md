@@ -12,3 +12,7 @@ Your Development Swiss Knife
 # Description
 
 🗡  Kunai CLI, your development swiss knife! a cli tool that aims to improve your development productivity
+
+## TODO
+- [ ] AI auto generate commits
+- [ ] AI Auto generate PR
