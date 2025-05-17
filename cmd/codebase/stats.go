@@ -25,10 +25,10 @@ var statsCmdParams struct {
 
 func init() {
 	statsCmd.Flags().StringVarP(&statsCmdParams.ProjectFilter, "project", "p", "", "only include this project")
+	statsCmd.Flags().StringVar(&statsCmdParams.ElasticSearchURL, "es-url", "http://localhost:9200", "elastic search url")
 }
 
 func runStatsCmd(cmd *cobra.Command, args []string) error {
-	statsCmdParams.ElasticSearchURL = "http://localhost:9200"
 	esClient, err := es.NewClient(statsCmdParams.ElasticSearchURL)
 	if err != nil {
 		return err

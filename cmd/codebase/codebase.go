@@ -7,7 +7,7 @@ import (
 var Cmd = &cobra.Command{
 	Use:   "codebase",
 	Short: `Code base utilities`,
-	Long:  `Code base utilities, such as search, deploy...`,
+	Long:  `Code base utilities, such as search, ai assistant, create PR, generate commits...`,
 }
 
 const (
@@ -18,4 +18,5 @@ func init() {
 	Cmd.AddCommand(indexCmd)
 	Cmd.AddCommand(searchCmd)
 	Cmd.AddCommand(statsCmd)
+	Cmd.AddCommand(chatCmd)
 }

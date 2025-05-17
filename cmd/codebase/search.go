@@ -29,10 +29,10 @@ func init() {
 		log.Fatalln("search query required")
 	}
 	searchCmd.Flags().StringVarP(&searchCmdParams.ProjectFilter, "project", "p", "", "filter by project")
+	searchCmd.Flags().StringVar(&searchCmdParams.ElasticSearchURL, "es-url", "http://localhost:9200", "elastic search url")
 }
 
 func runSearchCmd(cmd *cobra.Command, args []string) error {
-	searchCmdParams.ElasticSearchURL = "http://localhost:9200"
 	esClient, _ := es.NewClient(searchCmdParams.ElasticSearchURL)
 	// build search query
 	body := map[string]map[string]interface{}{

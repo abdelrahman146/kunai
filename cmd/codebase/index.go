@@ -23,6 +23,7 @@ var indexCmdParams struct {
 
 func init() {
 	indexCmd.Flags().StringVarP(&indexCmdParams.CodebaseDir, "dir", "d", "", "codebase directory")
+	indexCmd.Flags().StringVar(&indexCmdParams.ElasticSearchURL, "es-url", "http://localhost:9200", "elastic search url")
 	if err := indexCmd.MarkFlagRequired("dir"); err != nil {
 		log.Fatalln("codebase dir required")
 	}
@@ -41,7 +42,6 @@ func runIndexCmdProjectScanner(id int, projectsChannel <-chan string, documentCh
 }
 
 func runIndexCmd(cmd *cobra.Command, args []string) error {
-	indexCmdParams.ElasticSearchURL = "http://localhost:9200"
 	log.Printf("indexing started ... \n")
 	// get mapping
 	mapping, err := json.Marshal(es.IndexMapping)
