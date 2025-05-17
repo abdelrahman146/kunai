@@ -1,10 +1,10 @@
 package es
 
 import (
+	"github.com/abdelrahman146/kunai/utils"
 	"io/fs"
 	"os"
 	"path/filepath"
-	"strings"
 	"time"
 )
 
@@ -26,7 +26,7 @@ func GetProjects(rootDir string, projectCh chan<- string) error {
 			return err
 		}
 		if d.IsDir() {
-			if canProcessPath(path) && isProjectRoot(path) {
+			if utils.CanProcessPath(path) && isProjectRoot(path) {
 				projectCh <- path
 			}
 		}
@@ -45,10 +45,10 @@ func ScanProject(projectPath string, documentCh chan<- Document) error {
 		}
 		// Only process acceptable source extension
 		ext := filepath.Ext(path)
-		if !canProcessFile(ext) {
+		if !utils.CanProcessFile(ext) {
 			return nil
 		}
-		if !canProcessPath(path) {
+		if !utils.CanProcessPath(path) {
 			return nil
 		}
 
@@ -96,26 +96,6 @@ func fileExists(path string) bool {
 	return err == nil
 }
 
-// canProcessPath checks if the dirname is blocklisted
-func canProcessPath(path string) bool {
-	ignored := []string{"node_modules", ".git", ".idea", "dist", "build", "out", ".next"}
-	for _, ignore := range ignored {
-		if strings.Contains(path, ignore) {
-			return false
-		}
-	}
-	return true
-}
-
-// canProcessFile checks if file ext is valid
-func canProcessFile(ext string) bool {
-	switch ext {
-	case ".go", ".js", ".jsx", ".mjs", ".ts", ".tsx", ".md", ".yaml", ".yml", ".env", ".example", ".json":
-		return true
-	default:
-		return false
-	}
-}
 func inferLanguage(ext string) string {
 	switch ext {
 	case ".go":

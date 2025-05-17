@@ -78,7 +78,7 @@ func runFreeSomeSpace(cmd *cobra.Command, args []string) {
 	}
 
 	if !freeSomeSpaceCmdParams.Force {
-		ok, err := utils.WaitForConfirmation("Are you sure you want to kill the processes above and their children?")
+		ok, err := utils.RequestConfirmation("Are you sure you want to kill the processes above and their children?")
 		if err != nil {
 			fmt.Printf("Failed to read user input: %v\n", err)
 			return
