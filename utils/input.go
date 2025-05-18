@@ -5,9 +5,10 @@ import (
 	"fmt"
 	"github.com/briandowns/spinner"
 	"github.com/charmbracelet/glamour"
-	"golang.org/x/crypto/ssh/terminal"
+	"github.com/charmbracelet/glamour/styles"
 	"golang.org/x/term"
 	"os"
+	"regexp"
 	"strings"
 	"time"
 )
@@ -26,17 +27,12 @@ func RequestConfirmation(message string) (bool, error) {
 func RunREPL(processInput func(string) (response any, err error)) {
 	reader := bufio.NewReader(os.Stdin)
 	var renderer *glamour.TermRenderer
-	isTTY := terminal.IsTerminal(int(os.Stdout.Fd()))
-	style := "notty"
-	if isTTY {
-		style = "dark"
-		r, renderErr := glamour.NewTermRenderer(
-			glamour.WithStandardStyle(style),
-			glamour.WithWordWrap(TerminalWidth()),
-		)
-		if renderErr == nil {
-			renderer = r
-		}
+	r, renderErr := glamour.NewTermRenderer(
+		glamour.WithStandardStyle(styles.DraculaStyle),
+		glamour.WithWordWrap(TerminalWidth()),
+	)
+	if renderErr == nil {
+		renderer = r
 	}
 	fmt.Println("Interactive project-aware REPL started. Type 'exit' or 'quit' to quit.")
 	for {
@@ -54,16 +50,31 @@ func RunREPL(processInput func(string) (response any, err error)) {
 		if renderer != nil {
 			respStr, ok := resp.(string)
 			if ok {
-				if out, err := renderer.Render(respStr); err != nil {
+				if out, err := renderer.Render(formatResponse(respStr)); err != nil {
 					fmt.Println(respStr)
 				} else {
-					fmt.Print(out)
+					fmt.Println(out)
+					//fmt.Println(formatResponse(respStr))
 				}
 				continue
 			}
 		}
 		fmt.Println(resp)
 	}
+}
+
+func formatResponse(input string) string {
+	re := regexp.MustCompile(`(?s)<think>(.*?)</think>`)
+	return re.ReplaceAllStringFunc(input, func(block string) string {
+		matches := re.FindStringSubmatch(block)
+		if len(matches) < 2 {
+			return block
+		}
+		inner := strings.TrimSpace(matches[1])
+		quoted := "### Thought Process:\n> " + strings.ReplaceAll(inner, "\n", "\n> ")
+		quoted += "\n---\n"
+		return quoted
+	})
 }
 
 func RunWithSpinner(msg string, process func()) {
@@ -76,7 +87,6 @@ func RunWithSpinner(msg string, process func()) {
 }
 
 // TerminalWidth returns the terminal's current width in characters.
-// If it cannot detect the width (e.g., not a TTY), it falls back to 80 columns.
 func TerminalWidth() int {
 	// GetSize returns width, height, error
 	if width, _, err := term.GetSize(int(os.Stdout.Fd())); err == nil && width > 0 {

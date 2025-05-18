@@ -136,9 +136,7 @@ CODE CONTEXT:
 {{.context}}
 
 USER QUESTION:
-{{.question}}
-
-ANSWER:`,
+{{.question}}`,
 		InputVariables: []string{"context", "question"},
 		TemplateFormat: prompts.TemplateFormatGoTemplate,
 	}
