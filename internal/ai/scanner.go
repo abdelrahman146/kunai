@@ -30,13 +30,17 @@ func ScanProject(projectPath string, chunkSize, chunkOverlap int, store vectorst
 				if len(batch) < batchSize {
 					batch = append(batch, doc)
 				} else {
-					err = StoreDocuments(ctx, []schema.Document{doc}, store)
+					batch = append(batch, doc)
+					err = StoreDocuments(ctx, batch, store)
 					if err != nil {
 						return
 					}
 					batch = batch[:0]
 				}
-
+			}
+			// store whatever left before stopping
+			if len(batch) > 0 {
+				err = StoreDocuments(ctx, batch, store)
 			}
 		}()
 	}
