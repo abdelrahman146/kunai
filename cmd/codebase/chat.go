@@ -5,14 +5,22 @@ import (
 	"github.com/abdelrahman146/kunai/internal/ai"
 	"github.com/abdelrahman146/kunai/utils"
 	"github.com/spf13/cobra"
+	"github.com/tmc/langchaingo/prompts"
 	"time"
 )
 
 var chatCmd = &cobra.Command{
 	Use:   "chat",
-	Short: "Launch an interactive REPL with project context via Ollama",
+	Short: "Launch an interactive multi-task REPL with project context via Ollama",
 	Long: `Starts a REPL where each question is sent to a local Ollama model
-with the current project context prepended. Use 'exit', 'quit' or Ctrl+C to quit.`,
+with the current project context and tasks prepended. Tasks can include:
+- Adding new features
+- Code analysis & reviews
+- Explaining code & workflows
+- Refactoring & optimization
+- Enhancements & bug fixes
+- Writing tests & documentation
+Use 'exit', 'quit' or Ctrl+C to quit.`,
 	RunE: runChatCmd,
 }
 
@@ -61,6 +69,8 @@ func runChatCmd(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
+
+	// scan project and embed vectors
 	docs, err := ai.ScanProject(chatCmdParams.ContextDir)
 	if err != nil {
 		return err
@@ -68,7 +78,11 @@ func runChatCmd(cmd *cobra.Command, args []string) error {
 	if err = ai.StoreDocuments(ctx, docs, store); err != nil {
 		return err
 	}
-	qaChain, convMem := ai.NewConversationRetriever(store, llm, chatCmdParams.MaxRelevantDocs)
+
+	basePrompt := chatCmdBasePrompt()
+	historyPrompt := chatCmdHistoryPrompt()
+	qaChain, convMem := ai.NewConversationRetriever(store, llm, chatCmdParams.MaxRelevantDocs, basePrompt, historyPrompt)
+
 	// Start REPL
 	utils.RunREPL(func(input string) (response any, err error) {
 		// Retrieve relevant docs
@@ -81,11 +95,15 @@ func runChatCmd(cmd *cobra.Command, args []string) error {
 		}
 		inputs["history"] = memVars["history"]
 		var answer string
+
 		utils.RunWithSpinner("Thinking...", func() {
 			tc, cancel := context.WithTimeout(ctx, 60*time.Second)
 			defer cancel()
 			out, outErr := qaChain.Call(tc, inputs)
 			err = outErr
+			if outErr != nil {
+				return
+			}
 			answer = out["text"].(string)
 		})
 		if err != nil {
@@ -100,4 +118,39 @@ func runChatCmd(cmd *cobra.Command, args []string) error {
 		return answer, nil
 	})
 	return nil
+}
+
+func chatCmdBasePrompt() prompts.PromptTemplate {
+	basePrompt := prompts.PromptTemplate{
+		Template: `
+SYSTEM: You are an AI assistant expert in software development and engineering, your task is to answer development questions EXCLUSIVELY for this codebase.  
+1. If a question is not answerable from the context, reply exactly:  
+   "I can't answer this because it is outside the context."  
+2. Otherwise, answer concisely.
+
+Context:
+{{.context}}
+
+User’s question:
+{{.question}}
+
+Answer:`,
+		InputVariables: []string{"context", "question"},
+		TemplateFormat: prompts.TemplateFormatGoTemplate,
+	}
+	return basePrompt
+}
+
+func chatCmdHistoryPrompt() prompts.PromptTemplate {
+	historyPrompt := prompts.PromptTemplate{
+		Template: `
+Given the conversation so far:
+{{.chat_history}}
+
+Rewrite the follow-up question so it can be understood on its own:
+{{.question}}`,
+		InputVariables: []string{"chat_history", "question"},
+		TemplateFormat: prompts.TemplateFormatGoTemplate,
+	}
+	return historyPrompt
 }

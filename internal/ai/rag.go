@@ -2,11 +2,13 @@ package ai
 
 import (
 	"context"
+	"github.com/abdelrahman146/kunai/utils"
 	"github.com/tmc/langchaingo/chains"
 	"github.com/tmc/langchaingo/embeddings"
 	"github.com/tmc/langchaingo/llms"
 	"github.com/tmc/langchaingo/llms/ollama"
 	"github.com/tmc/langchaingo/memory"
+	"github.com/tmc/langchaingo/prompts"
 	"github.com/tmc/langchaingo/schema"
 	"github.com/tmc/langchaingo/vectorstores"
 	"github.com/tmc/langchaingo/vectorstores/pgvector"
@@ -33,16 +35,22 @@ func NewStore(ctx context.Context, storeURL string, embedder embeddings.Embedder
 }
 
 func StoreDocuments(ctx context.Context, docs []schema.Document, store vectorstores.VectorStore) error {
-	if len(docs) == 0 {
-		return nil
-	}
-	_, err := store.AddDocuments(ctx, docs)
+	var err error
+	utils.RunWithSpinner("Embedding...", func() {
+		if len(docs) == 0 {
+			return
+		}
+		_, err = store.AddDocuments(ctx, docs)
+	})
 	return err
 }
 
-func NewConversationRetriever(store vectorstores.VectorStore, llm llms.Model, topK int) (chains.ConversationalRetrievalQA, *memory.ConversationBuffer) {
+func NewConversationRetriever(store vectorstores.VectorStore, llm llms.Model, topK int, basePrompt prompts.PromptTemplate, historyPrompt prompts.PromptTemplate) (chains.ConversationalRetrievalQA, *memory.ConversationBuffer) {
 	retriever := vectorstores.ToRetriever(store, topK)
 	convMem := memory.NewConversationBuffer(memory.WithReturnMessages(true))
-	qaChain := chains.NewConversationalRetrievalQAFromLLM(llm, retriever, convMem)
+	llmChain := chains.NewLLMChain(llm, basePrompt)
+	combineChain := chains.NewStuffDocuments(llmChain)
+	condenseChain := chains.NewLLMChain(llm, historyPrompt)
+	qaChain := chains.NewConversationalRetrievalQA(combineChain, condenseChain, retriever, convMem)
 	return qaChain, convMem
 }
