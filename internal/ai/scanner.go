@@ -2,6 +2,7 @@ package ai
 
 import (
 	"context"
+	"fmt"
 	"github.com/abdelrahman146/kunai/internal/es"
 	"github.com/abdelrahman146/kunai/utils"
 	"github.com/tmc/langchaingo/documentloaders"
@@ -11,6 +12,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 )
 
@@ -44,6 +46,7 @@ func ScanProject(projectPath string, chunkSize, chunkOverlap int, store vectorst
 			}
 		}()
 	}
+	var paths []string
 	err = filepath.WalkDir(projectPath, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
@@ -58,40 +61,70 @@ func ScanProject(projectPath string, chunkSize, chunkOverlap int, store vectorst
 		if !utils.CanProcessPath(path) {
 			return nil
 		}
-		chunks, err := fileToChunks(projectPath, path, chunkSize, chunkOverlap)
+		rel, _ := filepath.Rel(projectPath, path)
+		paths = append(paths, rel)
+		chunks, err := fileToDocuments(projectPath, path, chunkSize, chunkOverlap)
 		if err != nil {
 			return err
 		}
+
 		for _, chunk := range chunks {
 			docsCh <- chunk
 		}
 		return nil
 	})
+	// Add table of content
+	toc := schema.Document{
+		PageContent: "// PROJECT TOC\n" + strings.Join(paths, "\n"),
+		Metadata:    map[string]any{"type": "toc"},
+	}
+	docsCh <- toc
 	close(docsCh)
 	docsWg.Wait()
 	return err
 }
 
-func fileToChunks(projectPath, filePath string, chunkSize, chunkOverlap int) ([]schema.Document, error) {
+func fileToDocuments(projectPath, filePath string, chunkSize, chunkOverlap int) ([]schema.Document, error) {
 	file, err := os.Open(filePath)
+	defer file.Close()
 	if err != nil {
 		return nil, err
 	}
 	docLoaded := documentloaders.NewText(file)
-	split := textsplitter.NewRecursiveCharacter()
-	split.ChunkSize = chunkSize
-	split.ChunkOverlap = chunkOverlap
-	docs, err := docLoaded.LoadAndSplit(context.Background(), split)
+	fileInfo, err := os.Stat(filePath)
+	if err != nil {
+		return nil, err
+	}
+	size := fileInfo.Size()
 	relPath, _ := filepath.Rel(projectPath, filePath)
-	for _, doc := range docs {
-		doc.Metadata["path"] = relPath
-		doc.Metadata["fileName"] = filepath.Base(filePath)
-		ext := filepath.Ext(filePath)
-		doc.Metadata["ext"] = ext
-		doc.Metadata["language"] = es.InferLanguage(ext)
+	ext := filepath.Ext(filePath)
+	meta := map[string]any{
+		"path":     relPath,
+		"dir":      filepath.Dir(relPath),
+		"fileName": filepath.Base(relPath),
+		"ext":      filepath.Ext(relPath),
+		"language": es.InferLanguage(ext),
+		"isTest":   strings.Contains(strings.ToLower(relPath), "test"),
+	}
+	var docs []schema.Document
+	if size <= 50000 {
+		docs, err = docLoaded.Load(context.Background())
+	} else {
+		split := textsplitter.NewRecursiveCharacter()
+		split.ChunkSize = chunkSize
+		split.ChunkOverlap = chunkOverlap
+		docs, err = docLoaded.LoadAndSplit(context.Background(), split)
 	}
 	if err != nil {
 		return nil, err
+	}
+	for _, doc := range docs {
+		hdr := fmt.Sprintf(
+			"// FILE: %s\n// DIR: %s\n// LANG: %s\n// EXTENSION: %s\n// TEST: %v\n\n",
+			meta["fileName"], meta["dir"], meta["language"], meta["ext"], meta["isTest"],
+		)
+		doc.PageContent = hdr + doc.PageContent
+		doc.Metadata = meta
 	}
 	return docs, nil
 }

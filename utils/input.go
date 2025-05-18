@@ -78,12 +78,15 @@ func formatResponse(input string) string {
 }
 
 func RunWithSpinner(msg string, process func()) {
+	start := time.Now()
 	s := spinner.New(spinner.CharSets[14], 100*time.Millisecond)
 	s.Prefix = fmt.Sprintf("⏳ %s ", msg)
 	s.Suffix = "\n"
 	s.Start()
-	defer s.Stop()
 	process()
+	s.Stop()
+	elapsed := time.Since(start)
+	fmt.Printf("✅ %s done in %.f minutes\n", msg, elapsed.Minutes())
 }
 
 // TerminalWidth returns the terminal's current width in characters.

@@ -73,7 +73,7 @@ func runChatCmd(cmd *cobra.Command, args []string) error {
 	}
 
 	// scan project and embed vectors
-	utils.RunWithSpinner(fmt.Sprintf("Scanning: %s", filepath.Base(chatCmdParams.ContextDir)), func() {
+	utils.RunWithSpinner(fmt.Sprintf("Scanning %s", filepath.Base(chatCmdParams.ContextDir)), func() {
 		err = ai.ScanProject(chatCmdParams.ContextDir, 4000, 200, store)
 	})
 	if err != nil {
@@ -131,6 +131,8 @@ SYSTEM: You are a universal code assistant. You can handle tasks such as:
 - Architectural suggestions
 Answer using ONLY the provided code context; if none applies, reply exactly:
 "I can't answer this because it is outside the context."
+Each code snippet is preceded by a header with its file path, directory, language, test-flag, and framework. 
+Use these details when reasoning about structure.
 
 CODE CONTEXT:
 {{.context}}
