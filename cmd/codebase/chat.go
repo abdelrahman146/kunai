@@ -2,6 +2,7 @@ package codebase
 
 import (
 	"context"
+	"fmt"
 	"github.com/abdelrahman146/kunai/internal/ai"
 	"github.com/abdelrahman146/kunai/utils"
 	"github.com/spf13/cobra"
@@ -82,18 +83,17 @@ func runChatCmd(cmd *cobra.Command, args []string) error {
 	basePrompt := chatCmdBasePrompt()
 	historyPrompt := chatCmdHistoryPrompt()
 	qaChain, convMem := ai.NewConversationRetriever(store, llm, chatCmdParams.MaxRelevantDocs, basePrompt, historyPrompt)
-
+	fmt.Printf("Ready! You can now ask questions about this project.")
 	// Start REPL
 	utils.RunREPL(func(input string) (response any, err error) {
-		// Retrieve relevant docs
-		inputs := map[string]any{
-			"question": input, // your prompt
-		}
 		memVars, err := convMem.LoadMemoryVariables(ctx, nil)
 		if err != nil {
 			return "", err
 		}
-		inputs["history"] = memVars["history"]
+		inputs := map[string]any{
+			"question": input,
+			"history":  memVars["history"],
+		}
 		var answer string
 
 		utils.RunWithSpinner("Thinking...", func() {
@@ -121,24 +121,28 @@ func runChatCmd(cmd *cobra.Command, args []string) error {
 }
 
 func chatCmdBasePrompt() prompts.PromptTemplate {
-	basePrompt := prompts.PromptTemplate{
+	return prompts.PromptTemplate{
 		Template: `
-SYSTEM: You are an AI assistant expert in software development and engineering, your task is to answer development questions EXCLUSIVELY for this codebase.  
-1. If a question is not answerable from the context, reply exactly:  
-   "I can't answer this because it is outside the context."  
-2. Otherwise, answer concisely.
+SYSTEM: You are a universal code assistant. You can handle tasks such as:
+- Adding or enhancing features
+- Code reviews and analysis
+- Explaining code and flows
+- Refactoring and optimization
+- Performance improvements
+- Architectural suggestions
+Answer using ONLY the provided code context; if none applies, reply exactly:
+"I can't answer this because it is outside the context."
 
-Context:
+CODE CONTEXT:
 {{.context}}
 
-User’s question:
+USER QUESTION:
 {{.question}}
 
-Answer:`,
+ANSWER:`,
 		InputVariables: []string{"context", "question"},
 		TemplateFormat: prompts.TemplateFormatGoTemplate,
 	}
-	return basePrompt
 }
 
 func chatCmdHistoryPrompt() prompts.PromptTemplate {
