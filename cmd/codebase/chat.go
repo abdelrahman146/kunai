@@ -4,13 +4,7 @@ import (
 	"context"
 	"github.com/abdelrahman146/kunai/internal/ai"
 	"github.com/abdelrahman146/kunai/utils"
-	"github.com/charmbracelet/glamour"
 	"github.com/spf13/cobra"
-	"github.com/tmc/langchaingo/chains"
-	"github.com/tmc/langchaingo/memory"
-	"github.com/tmc/langchaingo/vectorstores"
-	"golang.org/x/crypto/ssh/terminal"
-	"os"
 	"time"
 )
 
@@ -34,8 +28,8 @@ var chatCmdParams struct {
 
 func init() {
 	chatCmd.Flags().StringVarP(&chatCmdParams.ContextDir, "context-dir", "c", "", "Specify the context directory")
-	chatCmd.Flags().StringVarP(&chatCmdParams.Model, "model", "m", "mistral", "Specify the LLM model")
-	chatCmd.Flags().StringVarP(&chatCmdParams.EmbedModel, "embed-model", "e", "nomic-embed-text", "Specify the embedding model")
+	chatCmd.Flags().StringVarP(&chatCmdParams.Model, "model", "m", "gemma3:12b", "Specify the LLM model")
+	chatCmd.Flags().StringVarP(&chatCmdParams.EmbedModel, "embed-model", "e", "bge-m3", "Specify the embedding model")
 	chatCmd.Flags().IntVar(&chatCmdParams.MaxChatHistoryDocs, "max-history-docs", 10, "Specify the max history docs")
 	chatCmd.Flags().IntVar(&chatCmdParams.MaxRelevantDocs, "max-relevant-docs", 10, "Specify the max relevant docs")
 	chatCmd.Flags().StringVar(&chatCmdParams.OllamaBaseURL, "ollama-url", "http://localhost:11434", "Ollama base url")
@@ -74,25 +68,7 @@ func runChatCmd(cmd *cobra.Command, args []string) error {
 	if err = ai.StoreDocuments(ctx, docs, store); err != nil {
 		return err
 	}
-	// Create Conversational Retrieval
-	retriever := vectorstores.ToRetriever(store, chatCmdParams.MaxRelevantDocs)
-	convMem := memory.NewConversationBuffer(memory.WithReturnMessages(true))
-	qaChain := chains.NewConversationalRetrievalQAFromLLM(llm, retriever, convMem)
-
-	// Prerpare Rendering
-	var renderer *glamour.TermRenderer
-	isTTY := terminal.IsTerminal(int(os.Stdout.Fd()))
-	style := "notty"
-	if isTTY {
-		style = "dark"
-		r, renderErr := glamour.NewTermRenderer(
-			glamour.WithStandardStyle(style),
-			glamour.WithWordWrap(utils.TerminalWidth()),
-		)
-		if renderErr == nil {
-			renderer = r
-		}
-	}
+	qaChain, convMem := ai.NewConversationRetriever(store, llm, chatCmdParams.MaxRelevantDocs)
 	// Start REPL
 	utils.RunREPL(func(input string) (response any, err error) {
 		// Retrieve relevant docs
@@ -120,14 +96,7 @@ func runChatCmd(cmd *cobra.Command, args []string) error {
 		if err := convMem.SaveContext(ctx, saveIn, saveOut); err != nil {
 			return "", err
 		}
-		// Send Answer
-		if renderer != nil {
-			if out, err := renderer.Render(answer); err != nil {
-				return answer, err
-			} else {
-				return out, nil
-			}
-		}
+		// return answer to be presented
 		return answer, nil
 	})
 	return nil

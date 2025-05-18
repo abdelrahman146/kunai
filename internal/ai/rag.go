@@ -2,9 +2,13 @@ package ai
 
 import (
 	"context"
+	"github.com/tmc/langchaingo/chains"
 	"github.com/tmc/langchaingo/embeddings"
+	"github.com/tmc/langchaingo/llms"
 	"github.com/tmc/langchaingo/llms/ollama"
+	"github.com/tmc/langchaingo/memory"
 	"github.com/tmc/langchaingo/schema"
+	"github.com/tmc/langchaingo/vectorstores"
 	"github.com/tmc/langchaingo/vectorstores/pgvector"
 )
 
@@ -28,7 +32,7 @@ func NewStore(ctx context.Context, storeURL string, embedder embeddings.Embedder
 	return &s, nil
 }
 
-func StoreDocuments(ctx context.Context, docs []schema.Document, store *pgvector.Store) error {
+func StoreDocuments(ctx context.Context, docs []schema.Document, store vectorstores.VectorStore) error {
 	if len(docs) == 0 {
 		return nil
 	}
@@ -36,43 +40,9 @@ func StoreDocuments(ctx context.Context, docs []schema.Document, store *pgvector
 	return err
 }
 
-//func RetrieveRelevantDocuments(ctx context.Context, store *pgvector.Store, prompt string, numDocuments int) ([]schema.Document, error) {
-//	opts := []vectorstores.Option{vectorstores.WithScoreThreshold(0.8)}
-//	retriever := vectorstores.ToRetriever(store, numDocuments, opts...)
-//	return retriever.GetRelevantDocuments(ctx, prompt)
-//}
-//
-//func GenerateHistory(ctx context.Context, relevantDocs []schema.Document, chatHistoryDocs []schema.Document) (*memory.ChatMessageHistory, error) {
-//	history := memory.NewChatMessageHistory()
-//	if len(relevantDocs) > 0 {
-//		for _, doc := range relevantDocs {
-//			if err := history.AddMessage(ctx, llms.SystemChatMessage{Content: doc.PageContent}); err != nil {
-//				return nil, err
-//			}
-//		}
-//	}
-//	if len(chatHistoryDocs) > 0 {
-//		for _, doc := range chatHistoryDocs {
-//			role := doc.Metadata["role"].(string)
-//			switch role {
-//			case "user":
-//				_ = history.AddUserMessage(ctx, doc.PageContent)
-//			case "assistant":
-//				_ = history.AddAIMessage(ctx, doc.PageContent)
-//			}
-//		}
-//	}
-//	return history, nil
-//}
-//
-//func Execute(ctx context.Context, history *memory.ChatMessageHistory, llm llms.Model, prompt string) (string, error) {
-//	conversation := memory.NewConversationBuffer(memory.WithChatHistory(history))
-//	executor := agents.NewExecutor(agents.NewConversationalAgent(llm, nil), agents.WithMemory(conversation))
-//	options := []chains.ChainCallOption{chains.WithTemperature(0.8)}
-//
-//	res, err := chains.Run(ctx, executor, prompt, options...)
-//	if err != nil {
-//		return "", err
-//	}
-//	return res, nil
-//}
+func NewConversationRetriever(store vectorstores.VectorStore, llm llms.Model, topK int) (chains.ConversationalRetrievalQA, *memory.ConversationBuffer) {
+	retriever := vectorstores.ToRetriever(store, topK)
+	convMem := memory.NewConversationBuffer(memory.WithReturnMessages(true))
+	qaChain := chains.NewConversationalRetrievalQAFromLLM(llm, retriever, convMem)
+	return qaChain, convMem
+}

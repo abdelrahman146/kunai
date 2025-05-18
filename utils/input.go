@@ -4,6 +4,8 @@ import (
 	"bufio"
 	"fmt"
 	"github.com/briandowns/spinner"
+	"github.com/charmbracelet/glamour"
+	"golang.org/x/crypto/ssh/terminal"
 	"golang.org/x/term"
 	"os"
 	"strings"
@@ -23,6 +25,19 @@ func RequestConfirmation(message string) (bool, error) {
 
 func RunREPL(processInput func(string) (response any, err error)) {
 	reader := bufio.NewReader(os.Stdin)
+	var renderer *glamour.TermRenderer
+	isTTY := terminal.IsTerminal(int(os.Stdout.Fd()))
+	style := "notty"
+	if isTTY {
+		style = "dark"
+		r, renderErr := glamour.NewTermRenderer(
+			glamour.WithStandardStyle(style),
+			glamour.WithWordWrap(TerminalWidth()),
+		)
+		if renderErr == nil {
+			renderer = r
+		}
+	}
 	fmt.Println("Interactive project-aware REPL started. Type 'exit' or 'quit' to quit.")
 	for {
 		fmt.Print("> ")
@@ -36,7 +51,18 @@ func RunREPL(processInput func(string) (response any, err error)) {
 			fmt.Println(err)
 			continue
 		}
-		fmt.Print(resp)
+		if renderer != nil {
+			respStr, ok := resp.(string)
+			if ok {
+				if out, err := renderer.Render(respStr); err != nil {
+					fmt.Println(respStr)
+				} else {
+					fmt.Print(out)
+				}
+				continue
+			}
+		}
+		fmt.Println(resp)
 	}
 }
 
