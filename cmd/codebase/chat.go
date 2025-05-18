@@ -7,6 +7,7 @@ import (
 	"github.com/abdelrahman146/kunai/utils"
 	"github.com/spf13/cobra"
 	"github.com/tmc/langchaingo/prompts"
+	"path/filepath"
 	"time"
 )
 
@@ -37,7 +38,7 @@ var chatCmdParams struct {
 
 func init() {
 	chatCmd.Flags().StringVarP(&chatCmdParams.ContextDir, "context-dir", "c", "", "Specify the context directory")
-	chatCmd.Flags().StringVarP(&chatCmdParams.Model, "model", "m", "gemma3:12b", "Specify the LLM model")
+	chatCmd.Flags().StringVarP(&chatCmdParams.Model, "model", "m", "deepseek-r1:14b", "Specify the LLM model")
 	chatCmd.Flags().StringVarP(&chatCmdParams.EmbedModel, "embed-model", "e", "bge-m3", "Specify the embedding model")
 	chatCmd.Flags().IntVar(&chatCmdParams.MaxChatHistoryDocs, "max-history-docs", 10, "Specify the max history docs")
 	chatCmd.Flags().IntVar(&chatCmdParams.MaxRelevantDocs, "max-relevant-docs", 10, "Specify the max relevant docs")
@@ -72,18 +73,16 @@ func runChatCmd(cmd *cobra.Command, args []string) error {
 	}
 
 	// scan project and embed vectors
-	docs, err := ai.ScanProject(chatCmdParams.ContextDir)
+	utils.RunWithSpinner(fmt.Sprintf("Scanning: %s", filepath.Base(chatCmdParams.ContextDir)), func() {
+		err = ai.ScanProject(chatCmdParams.ContextDir, 4000, 200, store)
+	})
 	if err != nil {
 		return err
 	}
-	if err = ai.StoreDocuments(ctx, docs, store); err != nil {
-		return err
-	}
-
 	basePrompt := chatCmdBasePrompt()
 	historyPrompt := chatCmdHistoryPrompt()
 	qaChain, convMem := ai.NewConversationRetriever(store, llm, chatCmdParams.MaxRelevantDocs, basePrompt, historyPrompt)
-	fmt.Printf("Ready! You can now ask questions about this project.")
+	fmt.Println("Ready! You can now ask questions about this project.")
 	// Start REPL
 	utils.RunREPL(func(input string) (response any, err error) {
 		memVars, err := convMem.LoadMemoryVariables(ctx, nil)
@@ -97,7 +96,7 @@ func runChatCmd(cmd *cobra.Command, args []string) error {
 		var answer string
 
 		utils.RunWithSpinner("Thinking...", func() {
-			tc, cancel := context.WithTimeout(ctx, 60*time.Second)
+			tc, cancel := context.WithTimeout(ctx, 5*time.Minute)
 			defer cancel()
 			out, outErr := qaChain.Call(tc, inputs)
 			err = outErr

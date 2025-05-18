@@ -2,7 +2,6 @@ package ai
 
 import (
 	"context"
-	"github.com/abdelrahman146/kunai/utils"
 	"github.com/tmc/langchaingo/chains"
 	"github.com/tmc/langchaingo/embeddings"
 	"github.com/tmc/langchaingo/llms"
@@ -36,12 +35,10 @@ func NewStore(ctx context.Context, storeURL string, embedder embeddings.Embedder
 
 func StoreDocuments(ctx context.Context, docs []schema.Document, store vectorstores.VectorStore) error {
 	var err error
-	utils.RunWithSpinner("Embedding...", func() {
-		if len(docs) == 0 {
-			return
-		}
-		_, err = store.AddDocuments(ctx, docs)
-	})
+	if len(docs) == 0 {
+		return nil
+	}
+	_, err = store.AddDocuments(ctx, docs)
 	return err
 }
 

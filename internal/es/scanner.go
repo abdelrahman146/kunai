@@ -70,7 +70,7 @@ func ScanProject(projectPath string, documentCh chan<- Document) error {
 			Project:   projName,
 			RelPath:   relToProj,
 			Extension: ext,
-			Language:  inferLanguage(ext),
+			Language:  InferLanguage(ext),
 			Content:   string(data),
 			Size:      info.Size(),
 			UpdatedAt: info.ModTime(),
@@ -96,7 +96,7 @@ func fileExists(path string) bool {
 	return err == nil
 }
 
-func inferLanguage(ext string) string {
+func InferLanguage(ext string) string {
 	switch ext {
 	case ".go":
 		return "go"
