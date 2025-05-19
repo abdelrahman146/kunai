@@ -42,12 +42,12 @@ func StoreDocuments(ctx context.Context, docs []schema.Document, store vectorsto
 	return err
 }
 
-func NewConversationRetriever(store vectorstores.VectorStore, llm llms.Model, topK int, basePrompt prompts.PromptTemplate, historyPrompt prompts.PromptTemplate) (chains.ConversationalRetrievalQA, *memory.ConversationBuffer) {
+func NewConversationChain(store vectorstores.VectorStore, llm llms.Model, topK int, basePrompt prompts.PromptTemplate, historyPrompt prompts.PromptTemplate) (chains.ConversationalRetrievalQA, *memory.ConversationBuffer, vectorstores.Retriever) {
 	retriever := vectorstores.ToRetriever(store, topK)
 	convMem := memory.NewConversationBuffer(memory.WithReturnMessages(true))
 	llmChain := chains.NewLLMChain(llm, basePrompt)
 	combineChain := chains.NewStuffDocuments(llmChain)
 	condenseChain := chains.NewLLMChain(llm, historyPrompt)
 	qaChain := chains.NewConversationalRetrievalQA(combineChain, condenseChain, retriever, convMem)
-	return qaChain, convMem
+	return qaChain, convMem, retriever
 }

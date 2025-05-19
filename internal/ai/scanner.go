@@ -118,13 +118,17 @@ func fileToDocuments(projectPath, filePath string, chunkSize, chunkOverlap int) 
 	if err != nil {
 		return nil, err
 	}
+	var enhancedDocs []schema.Document
 	for _, doc := range docs {
+		var enhancedDoc schema.Document
 		hdr := fmt.Sprintf(
 			"// FILE: %s\n// DIR: %s\n// LANG: %s\n// EXTENSION: %s\n// TEST: %v\n\n",
 			meta["fileName"], meta["dir"], meta["language"], meta["ext"], meta["isTest"],
 		)
-		doc.PageContent = hdr + doc.PageContent
-		doc.Metadata = meta
+		enhancedDoc.PageContent = hdr + doc.PageContent
+		enhancedDoc.Metadata = meta
+		enhancedDoc.Score = doc.Score
+		enhancedDocs = append(enhancedDocs, enhancedDoc)
 	}
-	return docs, nil
+	return enhancedDocs, nil
 }

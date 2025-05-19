@@ -81,7 +81,7 @@ func runChatCmd(cmd *cobra.Command, args []string) error {
 	}
 	basePrompt := chatCmdBasePrompt()
 	historyPrompt := chatCmdHistoryPrompt()
-	qaChain, convMem := ai.NewConversationRetriever(store, llm, chatCmdParams.MaxRelevantDocs, basePrompt, historyPrompt)
+	qaChain, convMem, _ := ai.NewConversationChain(store, llm, chatCmdParams.MaxRelevantDocs, basePrompt, historyPrompt)
 	fmt.Println("Ready! You can now ask questions about this project.")
 	// Start REPL
 	utils.RunREPL(func(input string) (response any, err error) {
@@ -89,6 +89,11 @@ func runChatCmd(cmd *cobra.Command, args []string) error {
 		if err != nil {
 			return "", err
 		}
+		//relDocs, err := retriever.GetRelevantDocuments(context.Background(), input)
+		//if err != nil {
+		//	return "", err
+		//}
+		//return fmt.Sprintf("relDocs: %+v", relDocs), nil
 		inputs := map[string]any{
 			"question": input,
 			"history":  memVars["history"],
@@ -132,7 +137,7 @@ SYSTEM: You are a universal code assistant. You can handle tasks such as:
 Answer using ONLY the provided code context; if none applies, reply exactly:
 "I can't answer this because it is outside the context."
 Each code snippet is preceded by a header with its file name, directory path, programming language, file extension, and if the snippet is a test case or not. 
-Use these details when reasoning about structure.
+Use these details when reasoning about structure. if the snippet is related to a test file, you can deprioritize it while reasoning.
 
 CODE CONTEXT:
 {{.context}}
