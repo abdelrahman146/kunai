@@ -38,10 +38,10 @@ var chatCmdParams struct {
 
 func init() {
 	chatCmd.Flags().StringVarP(&chatCmdParams.ContextDir, "context-dir", "c", "", "Specify the context directory")
-	chatCmd.Flags().StringVarP(&chatCmdParams.Model, "model", "m", "deepseek-r1:14b", "Specify the LLM model")
+	chatCmd.Flags().StringVarP(&chatCmdParams.Model, "model", "m", "gemma3:4b", "Specify the LLM model")
 	chatCmd.Flags().StringVarP(&chatCmdParams.EmbedModel, "embed-model", "e", "bge-m3", "Specify the embedding model")
 	chatCmd.Flags().IntVar(&chatCmdParams.MaxChatHistoryDocs, "max-history-docs", 10, "Specify the max history docs")
-	chatCmd.Flags().IntVar(&chatCmdParams.MaxRelevantDocs, "max-relevant-docs", 10, "Specify the max relevant docs")
+	chatCmd.Flags().IntVar(&chatCmdParams.MaxRelevantDocs, "max-relevant-docs", 15, "Specify the max relevant docs")
 	chatCmd.Flags().StringVar(&chatCmdParams.OllamaBaseURL, "ollama-url", "http://localhost:11434", "Ollama base url")
 	chatCmd.Flags().StringVar(&chatCmdParams.VectorStoreURL, "vector-store-url", "postgres://postgres:postgres@localhost:5432/kunai", "Postgres Vector Store URL")
 }
