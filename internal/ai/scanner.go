@@ -12,6 +12,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 )
@@ -19,15 +20,15 @@ import (
 func ScanProject(projectPath string, chunkSize, chunkOverlap int, store vectorstores.VectorStore) error {
 	ctx := context.Background()
 	var err error
-	docsCh := make(chan schema.Document)
 	var docsWg sync.WaitGroup
-	workers := 5
+	workers := runtime.NumCPU() * 2
+	batchSize := 100
+	docsCh := make(chan schema.Document, workers*batchSize)
 	docsWg.Add(workers)
 	for i := 0; i < workers; i++ {
 		go func() {
 			defer docsWg.Done()
 			var batch []schema.Document
-			batchSize := 10
 			for doc := range docsCh {
 				if len(batch) < batchSize {
 					batch = append(batch, doc)
