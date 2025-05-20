@@ -19,4 +19,5 @@ func init() {
 	Cmd.AddCommand(searchCmd)
 	Cmd.AddCommand(statsCmd)
 	Cmd.AddCommand(chatCmd)
+	Cmd.AddCommand(commitCmd)
 }

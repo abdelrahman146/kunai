@@ -24,6 +24,30 @@ func RequestConfirmation(message string) (bool, error) {
 	return resp == "y" || resp == "yes", nil
 }
 
+func RequestOutputConfirmation(message, output string) (bool, string, error) {
+	reader := bufio.NewReader(os.Stdin)
+	fmt.Printf("%s [y: confirm, n: abort, e: edit]: ", message)
+	resp, err := reader.ReadString('\n')
+	if err != nil {
+		return false, "", fmt.Errorf("failed to read user input: %w", err)
+	}
+	resp = strings.TrimSpace(strings.ToLower(resp))
+	switch resp {
+	case "y", "yes":
+		return true, output, nil
+	case "n", "no":
+		return false, output, nil
+	case "e", "edit":
+		edited, err := Edit(output)
+		if err != nil {
+			return false, output, err
+		}
+		return true, edited, nil
+	default:
+		return false, output, fmt.Errorf("invalid response: %s", resp)
+	}
+}
+
 func RunREPL(processInput func(string) (response any, err error)) {
 	reader := bufio.NewReader(os.Stdin)
 	var renderer *glamour.TermRenderer
