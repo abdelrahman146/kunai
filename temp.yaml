@@ -1,0 +1,305 @@
+openapi: 3.1.0
+info:
+  title: Download Center API
+  version: '1.0.0'
+  description: |
+    REST interface that allows marketplace sellers to create asynchronous
+    catalog-export jobs, monitor their progress and download the resulting files.
+    All operations are **API-first** and protected by JWT Bearer authentication.
+servers:
+  - url: https://api.example.com   # ← replace with real gateway URL
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    Page:
+      name: page
+      in: query
+      description: Page number (1-based).
+      schema: { type: integer, minimum: 1, default: 1 }
+    Limit:
+      name: limit
+      in: query
+      description: Page size.
+      schema: { type: integer, minimum: 1, maximum: 100, default: 25 }
+    OrderBy:
+      name: orderBy
+      in: query
+      description: Field to sort by.
+      schema:
+        type: string
+        enum: [createdAt, productCount, status]
+    OrderDir:
+      name: orderDir
+      in: query
+      description: Sort direction.
+      schema: { type: string, enum: [asc, desc], default: desc }
+    Status:
+      name: status
+      in: query
+      description: Filter by job status.
+      schema: { $ref: '#/components/schemas/JobStatus' }
+    CreatedFrom:
+      name: createdFrom
+      in: query
+      description: ISO-8601 date — inclusive lower bound.
+      schema: { type: string, format: date }
+    CreatedTo:
+      name: createdTo
+      in: query
+      description: ISO-8601 date — inclusive upper bound.
+      schema: { type: string, format: date }
+    SellerId:
+      name: sellerId
+      in: query
+      description: Filter by sellerId (back-office only).
+      schema: { type: string }
+
+  schemas:
+    JobStatus:
+      type: string
+      enum:
+        - pending
+        - inQueue
+        - processing
+        - success
+        - failed
+        - timed_out
+        - canceled
+
+    Filters:
+      type: object
+      additionalProperties: false
+      properties:
+        categories:
+          type: array
+          items: { type: string }
+          nullable: true
+        brands:
+          type: array
+          items: { type: string }
+          nullable: true
+        products:
+          type: array
+          items: { type: string }
+          nullable: true
+        priceRange:
+          type: array
+          description: '[min,max] — null means open-ended'
+          items:
+            oneOf:
+              - type: number
+              - type: 'null'
+          minItems: 2
+          maxItems: 2
+          nullable: true
+        createdAt:
+          type: array
+          description: '[startDate,endDate] — ISO 8601.'
+          items:
+            oneOf:
+              - type: string
+                format: date
+              - type: 'null'
+          minItems: 2
+          maxItems: 2
+          nullable: true
+
+    Job:
+      type: object
+      readOnly: true
+      properties:
+        id: { type: string, format: uuid }
+        sellerId: { type: string }
+        description: { type: string }
+        status: { $ref: '#/components/schemas/JobStatus' }
+        failureReason: { type: string, nullable: true }
+        retryableFailure: { type: boolean, nullable: true }
+        exportPath: { type: string, nullable: true }
+        filters: { $ref: '#/components/schemas/Filters' }
+        productCount: { type: integer }
+        selectedFields:
+          type: array
+          items: { type: string }
+          nullable: true
+        createdAt: { type: string, format: date-time }
+        inQueueAt: { type: string, format: date-time, nullable: true }
+        processingStartedAt: { type: string, format: date-time, nullable: true }
+        processedAt: { type: string, format: date-time, nullable: true }
+
+    JobDto:
+      allOf:
+        - $ref: '#/components/schemas/Job'
+        - type: object
+          properties:
+            eta:
+              type: string
+              format: date-time
+              description: Populated only for **pending** / **inQueue** jobs.
+              nullable: true
+
+    JobCreateRequest:
+      type: object
+      required: [filters]
+      properties:
+        description:
+          type: string
+          maxLength: 255
+          description: Optional free-text description shown in UI.
+        filters: { $ref: '#/components/schemas/Filters' }
+        selectedFields:
+          type: array
+          items: { type: string }
+          nullable: true
+
+    JobListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/JobDto' }
+        page: { type: integer }
+        limit: { type: integer }
+        total: { type: integer }
+
+    DownloadLinkResponse:
+      type: object
+      properties:
+        link: { type: string, format: uri }
+        expireAt: { type: string, format: date-time }
+
+    Error:
+      type: object
+      required: [code, message]
+      properties:
+        code: { type: string }
+        message: { type: string }
+        details: { type: object, nullable: true }
+
+security:
+  - BearerAuth: []
+
+tags:
+  - name: Seller
+  - name: Backoffice
+
+paths:
+  /download-center/jobs:
+    post:
+      tags: [Seller]
+      summary: Create export job
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/JobCreateRequest' }
+      responses:
+        '201':
+          description: Job accepted
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/JobDto' }
+        '409':
+          description: Pending-job quota reached
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '422':
+          description: Validation or product-count error
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+    get:
+      tags: [Seller]
+      summary: List own jobs
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/OrderBy'
+        - $ref: '#/components/parameters/OrderDir'
+        - $ref: '#/components/parameters/Status'
+        - $ref: '#/components/parameters/CreatedFrom'
+        - $ref: '#/components/parameters/CreatedTo'
+      responses:
+        '200':
+          description: Paginated list
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/JobListResponse' }
+
+  /download-center/jobs/{jobId}/cancel:
+    put:
+      tags: [Seller]
+      summary: Cancel a pending job
+      parameters:
+        - name: jobId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Job canceled
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/JobDto' }
+        '409':
+          description: Cannot cancel — job is not pending
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '404':
+          description: Job not found
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  /download-center/{jobId}/download:
+    post:
+      tags: [Seller]
+      summary: Generate download link for a successful job
+      parameters:
+        - name: jobId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Signed URL generated
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DownloadLinkResponse' }
+        '409':
+          description: Job not ready for download
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '404':
+          description: Job not found
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  /download-center/backoffice/jobs:
+    get:
+      tags: [Backoffice]
+      summary: List jobs (back-office)
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/OrderBy'
+        - $ref: '#/components/parameters/OrderDir'
+        - $ref: '#/components/parameters/Status'
+        - $ref: '#/components/parameters/CreatedFrom'
+        - $ref: '#/components/parameters/CreatedTo'
+        - $ref: '#/components/parameters/SellerId'
+      responses:
+        '200':
+          description: Paginated list of all jobs
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/JobListResponse' }
